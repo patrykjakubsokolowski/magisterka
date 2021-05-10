@@ -1,9 +1,12 @@
 #include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 
 #define PD A0
 #define ON 1
 #define OFF 0
 #define MCP4725_ADDR 0x60
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const int LD_READ = A1;  //dziala
 const int DAC_SDA = A4; //dziala
@@ -60,6 +63,10 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(TRG), trigger, CHANGE);
   pinset();
   Wire.begin();
+  lcd.init();
+  lcd.begin(16,2);   // Inicjalizacja LCD 2x16
+  lcd.backlight(); // zalaczenie podwietlenia 
+  lcd_w();
 }
 
 void loop() {
@@ -175,7 +182,7 @@ void buttons() {
 void ld_read() {
   val = analogRead(LD_READ); //aktualnie podlaczone wyjscie z dac, ale bedzie z przetwornika prad nap
   mV = val * (5.0/1024.0);
-  Serial.println(mV); //dodać wyświetlenie na oled
+  //Serial.println(mV); //dodać wyświetlenie na oled
   if(mV >= 0.9) {  // zabezpieczenie mocy
     ld_safe = 0;  //sprawdzic low czy high to wartosci standardowe
   } else {
@@ -224,6 +231,14 @@ void pwm(int freq, float duty) {
   TCCR1B = (1<<WGM12)|(1<<WGM13)|(1<<CS12); 
   ICR1 = icr;  //czestotliwosc   16Mhz/(256 * 1Hz) - 1 = 62499
   OCR1A = ocr;  //wypelnienie 50%   62499 - 100%  6249 - 19% 31249 - 50%
+}
+
+void lcd_w() {
+  lcd.setCursor(0,0); // Ustawienie kursora w pozycji 0,0 (pierwszy wiersz, pierwsza kolumna)
+  lcd.print("P:325mW  MOD ON");
+  delay(500);
+  lcd.setCursor(0,1); //Ustawienie kursora w pozycji 0,0 (drugi wiersz, pierwsza kolumna)
+  lcd.print("F:15Hz   D:50%");
 }
 
 //ustawienia przycisków - jak przyjdzie to jeszcze dodać wyswietlacz po i2c na analogowych a2 i a3
