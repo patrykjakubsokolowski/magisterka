@@ -49,9 +49,12 @@ int freq_or_duty = 0; // 1 to f, 0 to d
 int ld_safe = 0; //1 bezpieczny można odpalać
 int val;
 float mV = 0;
-float mV_dac = 500;
+int mV_dac = 250;
 int freq = 1;
 float duty = 0.5;
+static char tekst1[16];
+static int moc[8][2] = {{229,1},{267,16},{286,34},{321,59},{328,69},{357,92},{397,125},{423,146}};
+int moc_i = 0;
 
 unsigned int ocr;
 unsigned int icr;
@@ -127,7 +130,7 @@ void buttons() {
           }
         }
       } else {
-        if(button_en && mV_dac > 50) mV_dac -= 50;
+        if(button_en && moc_i > 0) moc_i -= 1;
       }
     }
     if(push_button1 == HIGH) {
@@ -153,7 +156,7 @@ void buttons() {
           }
         }
       } else {
-        if(button_en && mV_dac <= 950 ) mV_dac += 50;
+        if(button_en && moc_i < 7 ) moc_i += 1;
       }
     }
     if(push_button2 == HIGH) {
@@ -174,8 +177,9 @@ void buttons() {
 
   if(laser_en == 1) {
      mod(mod_en);
-     dac(mV_dac);
+     dac(moc[moc_i][0]);
   }
+  lcd_w();
 }
 
 //sprawdzenia napiecia z fotodiody, zabezpieczenie - dziala
@@ -234,11 +238,23 @@ void pwm(int freq, float duty) {
 }
 
 void lcd_w() {
+  int duty_int = duty*100;
   lcd.setCursor(0,0); // Ustawienie kursora w pozycji 0,0 (pierwszy wiersz, pierwsza kolumna)
-  lcd.print("P:325mW  MOD ON");
-  delay(500);
+  sprintf(tekst1, "P:%3imW ", moc[moc_i][1]);
+  lcd.print(tekst1);
+  lcd.setCursor(9,0);
+    Serial.println(moc_i);
+    Serial.println(mV);
+  if(button_mod == 0) {
+      lcd.print("MOD OFF");
+  } else {
+      lcd.print("MOD ON ");
+  }
   lcd.setCursor(0,1); //Ustawienie kursora w pozycji 0,0 (drugi wiersz, pierwsza kolumna)
-  lcd.print("F:15Hz   D:50%");
+  sprintf(tekst1, "F:%2ikH   D:%2i", freq, duty_int);
+  lcd.print(tekst1);
+  lcd.setCursor(13,1); //Ustawienie kursora w pozycji 0,0 (drugi wiersz, pierwsza kolumna)
+  lcd.print("%");
 }
 
 //ustawienia przycisków - jak przyjdzie to jeszcze dodać wyswietlacz po i2c na analogowych a2 i a3
