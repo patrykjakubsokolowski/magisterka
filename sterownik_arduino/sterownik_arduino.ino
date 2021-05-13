@@ -53,7 +53,7 @@ int mV_dac = 250;
 int freq = 1;
 float duty = 0.5;
 static char tekst1[16];
-static int moc[8][2] = {{229,1},{267,16},{286,34},{321,59},{328,69},{357,92},{397,125},{423,146}};
+static int moc[9][2] = {{50,90},{100,250},{150,280},{200,34},{250,59},{300,69},{350,92},{397,125},{423,146}};
 int moc_i = 0;
 
 unsigned int ocr;
@@ -186,8 +186,9 @@ void buttons() {
 void ld_read() {
   val = analogRead(LD_READ); //aktualnie podlaczone wyjscie z dac, ale bedzie z przetwornika prad nap
   mV = val * (5.0/1024.0);
+  Serial.println(mV);
   //Serial.println(mV); //dodać wyświetlenie na oled
-  if(mV >= 0.9) {  // zabezpieczenie mocy
+  if(mV >= 4.5) {  // zabezpieczenie mocy
     ld_safe = 0;  //sprawdzic low czy high to wartosci standardowe
   } else {
     ld_safe = 1;
@@ -196,14 +197,15 @@ void ld_read() {
 
 void enable(byte laser_en) {   //gotowe
   if(laser_en && ld_safe) { //jesli napiecie jest w zakresie bezpieczenstwa i dziala ld_set
-    digitalWrite(ENABLE, LOW);
+    digitalWrite(ENABLE, HIGH);
   } else {
-    digitalWrite(ENABLE, HIGH); //standardowe ustawienia
+    digitalWrite(ENABLE, LOW); //standardowe ustawienia
     dac(300);// do usuniecia laser sam ustawia wartosc standardowa
   }
 }
 
 void dac(int mV) {
+//if(state == 1) { }
 Wire.beginTransmission(MCP4725_ADDR);
   Wire.write(64);                     // cmd to update the DAC
   Wire.write((mV) >> 4);        // the 8 most significant bits...
@@ -216,11 +218,10 @@ void trigger() { // działa
   state = !state;
   //digitalWrite(6, state); //działa
 }
-
 //wlaczenia modulacji przyciskiem - dziala
 void mod(byte mod_en) {
   if(mod_en == 0) {
-     analogWrite(MOD, 0);
+     digitalWrite(MOD, HIGH);
   }
   if(mod_en == 1) {
      pwm(freq, duty);
@@ -243,8 +244,6 @@ void lcd_w() {
   sprintf(tekst1, "P:%3imW ", moc[moc_i][1]);
   lcd.print(tekst1);
   lcd.setCursor(9,0);
-    Serial.println(moc_i);
-    Serial.println(mV);
   if(button_mod == 0) {
       lcd.print("MOD OFF");
   } else {
