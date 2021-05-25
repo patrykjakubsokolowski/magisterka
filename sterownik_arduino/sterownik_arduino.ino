@@ -1,5 +1,6 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+  //#include <PID_v2.h>
 
 #define PD A0
 #define ON 1
@@ -8,14 +9,14 @@
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+const int DAC_READ = A0;  //dziala
 const int LD_READ = A1;  //dziala
 const int DAC_SDA = A4; //dziala
 const int DAC_SLC = A5; //dziala
 
-const int YELLOW = 3;     
-const int GREEN = 4;   
-const int WHITE = 5;    
-const int RED = 6; 
+const int GREEN = 3;
+const int YELLOW = 4;         
+const int RED = 5; 
 
 const int TRG = 2;       //dopytac o pomiar synchroniczny 
 const int ENABLE = 3;     //gotowe, ustawienie 1 daje wartosci standowdowe
@@ -23,13 +24,13 @@ const int LD_SET = 4;    // chyba do usuniecia, LD_SET to OUT z DAC
 const int P_BUTTON1 = 7;  //dziala
 const int P_BUTTON2 = 8;  //dziala
 const int MOD = 9;       //dziala
-const int SLIDE = 10;     //dziala zmiana Freq lub Duty
+const int F_D = 10;     //dziala zmiana Freq lub Duty
 const int BUTTON_MOD = 11;  //dziala
 const int BUTTON_EN = 12;   //dziala
 
-volatile byte state = LOW;
 volatile byte mod_en = LOW;
 volatile byte laser_en = LOW;
+volatile byte ld_safe = LOW; //1 bezpieczny można odpalać
 
 String inputString = "";         
 bool stringComplete = false;
@@ -40,36 +41,52 @@ int last_button_mod;
 int button_en = 0;  //0 - nie dziala ld_set, ustawia sie standardowa wartosc, 1 - dziala ld_set
 int last_button_en;
 int button_f_d = 0;
-int last_button3;
+int last_button_f_d;
+int button_trg = 0;
+int last_button_trg;
 int push_button1 = 0;
 int last_push_button1;
 int push_button2 = 0;
 int last_push_button2;
+
 int freq_or_duty = 0; // 1 to f, 0 to d
-int ld_safe = 0; //1 bezpieczny można odpalać
 int val;
-float mV = 0;
-int mV_dac = 250;
+int mV = 0;
+int dac_mV = 0;
 int freq = 1;
 float duty = 0.5;
+
 static char tekst1[16];
-static int moc[9][2] = {{50,90},{100,250},{150,280},{200,34},{250,59},{300,69},{350,92},{397,125},{423,146}};
-int moc_i = 0;
+static char tekst2[50];
+static unsigned int moc[13][3] = {{200,10,100},{230,20,200},{300,70,600},{325,115,800},{350,170,900},{420,170,1250},{450,235,1350},{500,245,1500},{550,295,1700},{600,315,2200},{600,350,2400}}; //{300,275},{350,314},{397,125},{423,146}};
+//dac, wyswietlacz, fotodioda
+unsigned int moc_i = 1;
+unsigned int moc_pomocnicza = 0;
+int odejmowanie = 0;
+unsigned int i = 0;
 
 unsigned int ocr;
 unsigned int icr;
+
+  //double Kp = 2, Ki = 5, Kd = 1;
+  //PID_v2 myPID(Kp, Ki, Kd, PID::Direct);
+  //double input = 0;
+  //double output = 0;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   inputString.reserve(50);
-  attachInterrupt(digitalPinToInterrupt(TRG), trigger, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(TRG), trigger, RISING);
   pinset();
   Wire.begin();
+    //myPID.Start(analogRead(LD_READ),0,100);                   // input, current, setpoint
+    //myPID.SetOutputLimits(0,400);
   lcd.init();
   lcd.begin(16,2);   // Inicjalizacja LCD 2x16
   lcd.backlight(); // zalaczenie podwietlenia 
   lcd_w();
+  dac(50); 
 }
 
 void loop() {
@@ -87,7 +104,8 @@ void loop() {
 void buttons() {
   button_mod = digitalRead(BUTTON_MOD);
   button_en = digitalRead(BUTTON_EN);
-  button_f_d = digitalRead(SLIDE);
+  button_f_d = digitalRead(F_D);
+  button_trg = digitalRead(TRG);
   push_button1 = digitalRead(P_BUTTON1);
   push_button2 = digitalRead(P_BUTTON2);
   
@@ -115,7 +133,8 @@ void buttons() {
 
  if (push_button1 != last_push_button1) { //przycisk w dol
     if(push_button1 == LOW) {
-      digitalWrite(GREEN, HIGH);
+      moc_pomocnicza = moc[moc_i][0];
+      dac(moc[moc_i][0]);
       if(mod_en == 1) {
         if(freq_or_duty == 1) {
           if(freq >=2) {
@@ -130,18 +149,18 @@ void buttons() {
           }
         }
       } else {
-        if(button_en && moc_i > 0) moc_i -= 1;
+        if(moc_i > 0) moc_i -= 1;
       }
     }
     if(push_button1 == HIGH) {
-      digitalWrite(GREEN, LOW);
     }
   }
   last_push_button1 = push_button1;
 
  if (push_button2 != last_push_button2) { //przycisk w gore
     if(push_button2 == LOW) {
-      digitalWrite(RED, HIGH);
+      moc_pomocnicza = moc[moc_i][0];
+      dac(moc[moc_i][0]);
       if(mod_en == 1) {
         if(freq_or_duty == 1) {
           if(freq < 10) {
@@ -156,16 +175,15 @@ void buttons() {
           }
         }
       } else {
-        if(button_en && moc_i < 7 ) moc_i += 1;
+        if(moc_i < 13 ) moc_i += 1;
       }
     }
     if(push_button2 == HIGH) {
-      digitalWrite(RED, LOW);
     }
   }
   last_push_button2 = push_button2;
   
-  if(button_f_d != last_button3) {
+  if(button_f_d != last_button_f_d) {
     if(button_f_d == LOW) {  // wybor zmiany f czy duty
       freq_or_duty = 0;
     }
@@ -173,11 +191,26 @@ void buttons() {
       freq_or_duty = 1;
     }
   } 
-  last_button3 = button_f_d;
+  last_button_f_d = button_f_d;
 
+   if(button_trg != last_button_trg) {
+    if(button_trg == LOW) {  // wybor zmiany f czy duty
+      //digitalWrite(GREEN, HIGH);
+    }
+    if(button_trg == HIGH) {  //zmiana f
+      //digitalWrite(GREEN, HIGH);
+    }
+
+  } 
+  last_button_trg = button_trg;
+
+  mod(mod_en);
   if(laser_en == 1) {
-     mod(mod_en);
-     dac(moc[moc_i][0]);
+     
+    // if(abs(moc[moc_i][2] - mV) > 50) {
+      // dac(moc[moc_i][0]);
+      // Serial.print("X");
+    // }
   }
   lcd_w();
 }
@@ -185,45 +218,85 @@ void buttons() {
 //sprawdzenia napiecia z fotodiody, zabezpieczenie - dziala
 void ld_read() {
   val = analogRead(LD_READ); //aktualnie podlaczone wyjscie z dac, ale bedzie z przetwornika prad nap
-  mV = val * (5.0/1024.0);
-  Serial.println(mV);
+  mV = val * (5000.0/1024.0);
+  val = analogRead(DAC_READ);
+  dac_mV = val * (5000.0/1024.0);
+  sprintf(tekst2, "PD:%3i MB:%3i DAC:%3i %3i S%2i en:%2i m:%2i", mV, moc[moc_i][2], moc_pomocnicza, dac_mV, ld_safe, laser_en, mod_en);
+  Serial.println(tekst2); //--------------------------------------------------------------------------------
   //Serial.println(mV); //dodać wyświetlenie na oled
-  if(mV >= 4.5) {  // zabezpieczenie mocy
+  if(dac_mV >= 800) {  // zabezpieczenie mocy
     ld_safe = 0;  //sprawdzic low czy high to wartosci standardowe
   } else {
     ld_safe = 1;
   }
+  i++;
+  
+  if(laser_en == 1 and i%10 == 0 and mod_en == 0) {
+    //moc_pomocnicza = moc[moc_i][0];
+    odejmowanie = moc[moc_i][2] - mV;
+    if(moc_pomocnicza < 800) {
+      if(odejmowanie > 300 and moc_pomocnicza > 20) {
+        moc_pomocnicza += 20;
+        dac(moc_pomocnicza);
+      } 
+      if(odejmowanie < -300 and moc_pomocnicza > 20) {
+        moc_pomocnicza -= 20;
+        dac(moc_pomocnicza);
+      }
+      if(odejmowanie > 100 and moc_pomocnicza > 1) {
+        moc_pomocnicza += 5;
+        dac(moc_pomocnicza);
+      } 
+      if(odejmowanie < -100 and moc_pomocnicza > 1) {
+        moc_pomocnicza -= 5;
+        dac(moc_pomocnicza);
+      }
+      if(odejmowanie > 10 and moc_pomocnicza > 1) {
+        moc_pomocnicza += 1;
+        dac(moc_pomocnicza);
+      } 
+      if(odejmowanie < -10 and moc_pomocnicza > 1) {
+        moc_pomocnicza -= 1;
+        dac(moc_pomocnicza);
+      }
+      i = 0;
+    }
+  }
 }
 
 void enable(byte laser_en) {   //gotowe
-  if(laser_en && ld_safe) { //jesli napiecie jest w zakresie bezpieczenstwa i dziala ld_set
+  if(laser_en and ld_safe) { //jesli napiecie jest w zakresie bezpieczenstwa i dziala ld_set
     digitalWrite(ENABLE, HIGH);
   } else {
     digitalWrite(ENABLE, LOW); //standardowe ustawienia
-    dac(300);// do usuniecia laser sam ustawia wartosc standardowa
+    dac(100);
   }
 }
 
 void dac(int mV) {
-//if(state == 1) { }
+if(moc_pomocnicza < 800 and mV > 0) { 
 Wire.beginTransmission(MCP4725_ADDR);
   Wire.write(64);                     // cmd to update the DAC
   Wire.write((mV) >> 4);        // the 8 most significant bits...
   Wire.write((mV & 15) << 4); // the 4 least significant bits...
   Wire.endTransmission();
+  } else {
+    dac(200);
+  }
 }
 
 //kod wyzwalany triggerem - dziala, do celowo ma wlaczac laser
 void trigger() { // działa
-  state = !state;
-  //digitalWrite(6, state); //działa
+  //laser_en = 1;
 }
 //wlaczenia modulacji przyciskiem - dziala
 void mod(byte mod_en) {
   if(mod_en == 0) {
-     digitalWrite(MOD, HIGH);
+     digitalWrite(MOD,HIGH);
+     digitalWrite(YELLOW, LOW);
   }
   if(mod_en == 1) {
+     digitalWrite(YELLOW, HIGH);
      pwm(freq, duty);
   }
 }
@@ -260,14 +333,13 @@ void lcd_w() {
 // oraz dac na tez po i2c na a4 i a5 nadal wolny 5 i 6 chwilowo dodane tam diody do debugowania
 void pinset() {
   pinMode(TRG, INPUT_PULLUP);
-  pinMode(YELLOW, OUTPUT);  //yellow //enable
-  pinMode(GREEN, OUTPUT);  //green  //ld_set raczej do usuniecia
-  pinMode(WHITE, OUTPUT);  //white  //przycisk do zmniejszenia wartosci
-  pinMode(RED, OUTPUT);  //red    //przycisk do zwiekszenia wartosci
+  pinMode(YELLOW, OUTPUT);  //yellow //mod
+  pinMode(GREEN, OUTPUT);  //green  //trig
+  pinMode(RED, OUTPUT);  //red    //enable
   pinMode(P_BUTTON1, INPUT_PULLUP);
   pinMode(P_BUTTON2, INPUT_PULLUP);
   pinMode(MOD, OUTPUT);
-  pinMode(SLIDE, INPUT_PULLUP);
+  pinMode(F_D, INPUT_PULLUP);
   pinMode(BUTTON_MOD, INPUT_PULLUP);
   pinMode(BUTTON_EN, INPUT_PULLUP);
 }
@@ -283,10 +355,10 @@ void serialEvent() {        //komunikacja z andorem
       stringComplete = true;
     }
     if(inputString == "2") { 
-    digitalWrite(WHITE, HIGH);
+    digitalWrite(GREEN, HIGH);
     }
     if(inputString == "3") {
-    digitalWrite(GREEN, HIGH);
+    digitalWrite(GREEN, LOW);
     }
   }
 }
