@@ -58,7 +58,7 @@ float duty = 0.5;
 
 static char tekst1[16];
 static char tekst2[50];
-static unsigned int moc[13][3] = {{200,10,100},{230,20,200},{300,70,600},{325,115,800},{350,170,900},{420,170,1250},{450,235,1350},{500,245,1500},{550,295,1700},{600,315,2200},{600,350,2400}}; //{300,275},{350,314},{397,125},{423,146}};
+static unsigned int moc[22][3] = {{200,5,100},{215,10,153},{240,20,222},{250,30,292},{255,40,361},{260,50,431},{270,60,500},{290,70,570},{300,80,640},{320,90,715},{330,100,785},{330,110,840},{345,120,908},{360,130,925},{380,140,1000},{400,150,1090},{420,175,1300},{450,200,1435},{470,225,1590},{490,250,1733},{530,275,1978},{540,300,2110}}; //{300,275},{350,314},{397,125},{423,146}};
 //dac, wyswietlacz, fotodioda
 unsigned int moc_i = 1;
 unsigned int moc_pomocnicza = 0;
@@ -77,7 +77,7 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   inputString.reserve(50);
-  attachInterrupt(digitalPinToInterrupt(TRG), trigger, RISING);
+  attachInterrupt(digitalPinToInterrupt(TRG), trigger, CHANGE);
   pinset();
   Wire.begin();
     //myPID.Start(analogRead(LD_READ),0,100);                   // input, current, setpoint
@@ -175,7 +175,7 @@ void buttons() {
           }
         }
       } else {
-        if(moc_i < 13 ) moc_i += 1;
+        if(moc_i < 21 ) moc_i += 1;
       }
     }
     if(push_button2 == HIGH) {
@@ -194,10 +194,10 @@ void buttons() {
   last_button_f_d = button_f_d;
 
    if(button_trg != last_button_trg) {
-    if(button_trg == LOW) {  // wybor zmiany f czy duty
+    if(button_trg == LOW) {  
       //digitalWrite(GREEN, HIGH);
     }
-    if(button_trg == HIGH) {  //zmiana f
+    if(button_trg == HIGH) { 
       //digitalWrite(GREEN, HIGH);
     }
 
@@ -287,7 +287,7 @@ Wire.beginTransmission(MCP4725_ADDR);
 
 //kod wyzwalany triggerem - dziala, do celowo ma wlaczac laser
 void trigger() { // działa
-  //laser_en = 1;
+  laser_en = !laser_en;
 }
 //wlaczenia modulacji przyciskiem - dziala
 void mod(byte mod_en) {
