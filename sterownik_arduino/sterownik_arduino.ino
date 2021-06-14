@@ -14,9 +14,9 @@ const int LD_READ = A1;  //dziala
 const int DAC_SDA = A4; //dziala
 const int DAC_SLC = A5; //dziala
 
-const int GREEN = 3;
+const int RED = 3;
 const int YELLOW = 4;         
-const int RED = 5; 
+const int GREEN = 5; 
 
 const int TRG = 2;       //dopytac o pomiar synchroniczny 
 const int ENABLE = 3;     //gotowe, ustawienie 1 daje wartosci standowdowe
@@ -58,7 +58,7 @@ float duty = 0.5;
 
 static char tekst1[16];
 static char tekst2[50];
-static unsigned int moc[22][3] = {{200,5,100},{215,10,153},{240,20,222},{250,30,292},{255,40,361},{260,50,431},{270,60,500},{290,70,570},{300,80,640},{320,90,715},{330,100,785},{330,110,840},{345,120,908},{360,130,925},{380,140,1000},{400,150,1090},{420,175,1300},{450,200,1435},{470,225,1590},{490,250,1733},{530,275,1978},{540,300,2110}}; //{300,275},{350,314},{397,125},{423,146}};
+static unsigned int moc[22][3] = {{200,5,90},{215,10,135},{240,20,202},{250,30,265},{255,40,361},{260,50,431},{270,60,500},{290,70,570},{300,80,650},{320,90,725},{330,100,785},{330,110,840},{345,120,908},{360,130,925},{380,140,1010},{400,150,1090},{420,175,1300},{450,200,1445},{470,225,1590},{490,250,1733},{530,275,1978},{540,300,2110}}; //{300,275},{350,314},{397,125},{423,146}};
 //dac, wyswietlacz, fotodioda
 unsigned int moc_i = 1;
 unsigned int moc_pomocnicza = 0;
@@ -96,7 +96,7 @@ void loop() {
   if (stringComplete) {
     inputString = "";
     stringComplete = false;
-    delay(100);
+    //delay(100);
   } 
 }
 
@@ -139,13 +139,13 @@ void buttons() {
         if(freq_or_duty == 1) {
           if(freq >=2) {
             freq--;
-            Serial.println(freq);
+            //Serial.println(freq);
           }
         }
         if(freq_or_duty == 0) {
           if(duty >= 0.2) {
             duty -= 0.1;
-            Serial.println(duty);
+            //Serial.println(duty);
           }
         }
       } else {
@@ -231,31 +231,39 @@ void ld_read() {
   }
   i++;
   
-  if(laser_en == 1 and i%10 == 0 and mod_en == 0) {
+  if(laser_en == 1  and i%5 == 0 and mod_en == 0) { //tu było i%2
     //moc_pomocnicza = moc[moc_i][0];
     odejmowanie = moc[moc_i][2] - mV;
     if(moc_pomocnicza < 800) {
-      if(odejmowanie > 300 and moc_pomocnicza > 20) {
-        moc_pomocnicza += 20;
+      if(odejmowanie > 300 and moc_pomocnicza > 1) {
+        moc_pomocnicza += 50;
         dac(moc_pomocnicza);
       } 
-      if(odejmowanie < -300 and moc_pomocnicza > 20) {
-        moc_pomocnicza -= 20;
+      if(odejmowanie < -300 and moc_pomocnicza > 51) {
+        moc_pomocnicza -= 50;
         dac(moc_pomocnicza);
       }
       if(odejmowanie > 100 and moc_pomocnicza > 1) {
-        moc_pomocnicza += 5;
+        moc_pomocnicza += 10;
         dac(moc_pomocnicza);
       } 
-      if(odejmowanie < -100 and moc_pomocnicza > 1) {
-        moc_pomocnicza -= 5;
+      if(odejmowanie < -100 and moc_pomocnicza > 11) {
+        moc_pomocnicza -= 10;
         dac(moc_pomocnicza);
       }
-      if(odejmowanie > 10 and moc_pomocnicza > 1) {
+      if(odejmowanie > 40 and moc_pomocnicza > 1) {
+        moc_pomocnicza += 2;
+        dac(moc_pomocnicza);
+      } 
+      if(odejmowanie < -40 and moc_pomocnicza > 3) {
+        moc_pomocnicza -= 2;
+        dac(moc_pomocnicza);
+      }
+      if(odejmowanie > 5 and moc_pomocnicza > 1) {
         moc_pomocnicza += 1;
         dac(moc_pomocnicza);
       } 
-      if(odejmowanie < -10 and moc_pomocnicza > 1) {
+      if(odejmowanie < -5 and moc_pomocnicza > 1) {
         moc_pomocnicza -= 1;
         dac(moc_pomocnicza);
       }
@@ -354,11 +362,67 @@ void serialEvent() {        //komunikacja z andorem
     if (inChar == '\n') {
       stringComplete = true;
     }
-    if(inputString == "2") { 
+    if(inputString == "5") { 
+    moc_i = 0;
+    }
+    else if(inputString == "10") {
+    moc_i = 1;
+    digitalWrite(GREEN, LOW);
+    }
+    else if(inputString == "20") {
+    moc_i = 2; 
     digitalWrite(GREEN, HIGH);
     }
-    if(inputString == "3") {
-    digitalWrite(GREEN, LOW);
+    else if(inputString == "30") { 
+    moc_i = 3;
+    }
+    else if(inputString == "40") { 
+    moc_i = 4;
+    }
+    else if(inputString == "50") { 
+    moc_i = 5;
+    }
+    else if(inputString == "60") { 
+    moc_i = 6;
+    }
+    else if(inputString == "70") { 
+    moc_i = 7;
+    }
+    else if(inputString == "80") { 
+    moc_i = 8;
+    }
+    else if(inputString == "90") { 
+    moc_i = 9;
+    }
+    else if(inputString == "100") { 
+    moc_i = 10;
+    }
+    else if(inputString == "110") { 
+    moc_i = 11;
+    }
+    else if(inputString == "120") { 
+    moc_i = 12;
+    }
+    else if(inputString == "130") { 
+    moc_i = 13;
+    }
+    else if(inputString == "140") { 
+    moc_i = 14;
+    }
+    else if(inputString == "150") { 
+    moc_i = 15;
+    }
+    else if(inputString == "175") { 
+    moc_i = 16;
+    }
+    else if(inputString == "200") { 
+    moc_i = 17;
+    }
+    else if(inputString == "MOD") { 
+     mod_en = !mod_en;
+    }
+    else if(inputString == "EN") { 
+     laser_en = !laser_en;
     }
   }
 }
