@@ -58,7 +58,7 @@ float duty = 0.5;
 
 static char tekst1[16];
 static char tekst2[50];
-static unsigned int moc[22][3] = {{200,5,90},{215,10,135},{240,20,202},{250,30,265},{255,40,361},{260,50,431},{270,60,500},{290,70,570},{300,80,650},{320,90,725},{330,100,785},{330,110,840},{345,120,908},{360,130,925},{380,140,1010},{400,150,1090},{420,175,1300},{450,200,1445},{470,225,1590},{490,250,1733},{530,275,1978},{540,300,2110}}; //{300,275},{350,314},{397,125},{423,146}};
+static unsigned int moc[22][3] = {{248,5,85},{265,10,120},{280,20,182},{300,30,252},{322,40,297},{340,50,342},{325,60,415},{360,70,476},{370,80,532},{407,90,589},{420,100,645},{430,110,722},{445,120,766},{460,130,831},{480,140,882},{500,150,951},{520,175,1048},{550,200,1216},{570,225,1353},{590,250,1490},{630,275,1627},{740,300,1765}}; //{300,275},{350,314},{397,125},{423,146}};
 //dac, wyswietlacz, fotodioda
 unsigned int moc_i = 1;
 unsigned int moc_pomocnicza = 0;
@@ -224,31 +224,39 @@ void ld_read() {
   sprintf(tekst2, "PD:%3i MB:%3i DAC:%3i %3i S%2i en:%2i m:%2i", mV, moc[moc_i][2], moc_pomocnicza, dac_mV, ld_safe, laser_en, mod_en);
   Serial.println(tekst2); //--------------------------------------------------------------------------------
   //Serial.println(mV); //dodać wyświetlenie na oled
-  if(dac_mV >= 800) {  // zabezpieczenie mocy
+  if(dac_mV >= 950) {  // zabezpieczenie mocy
     ld_safe = 0;  //sprawdzic low czy high to wartosci standardowe
   } else {
     ld_safe = 1;
   }
   i++;
   
-  if(laser_en == 1  and i%5 == 0 and mod_en == 0) { //tu było i%2
+  if(laser_en == 1  and i%2 == 0 and mod_en == 0) { //tu było i%2
     //moc_pomocnicza = moc[moc_i][0];
     odejmowanie = moc[moc_i][2] - mV;
     if(moc_pomocnicza < 800) {
       if(odejmowanie > 300 and moc_pomocnicza > 1) {
-        moc_pomocnicza += 50;
+        moc_pomocnicza += 20;
         dac(moc_pomocnicza);
       } 
-      if(odejmowanie < -300 and moc_pomocnicza > 51) {
-        moc_pomocnicza -= 50;
+      if(odejmowanie < -300 and moc_pomocnicza > 21) {
+        moc_pomocnicza -= 20;
         dac(moc_pomocnicza);
       }
-      if(odejmowanie > 100 and moc_pomocnicza > 1) {
+      if(odejmowanie > 200 and moc_pomocnicza > 1) {
         moc_pomocnicza += 10;
         dac(moc_pomocnicza);
       } 
-      if(odejmowanie < -100 and moc_pomocnicza > 11) {
+      if(odejmowanie < -200 and moc_pomocnicza > 11) {
         moc_pomocnicza -= 10;
+        dac(moc_pomocnicza);
+      }
+      if(odejmowanie > 100 and moc_pomocnicza > 1) {
+        moc_pomocnicza += 5;
+        dac(moc_pomocnicza);
+      } 
+      if(odejmowanie < -100 and moc_pomocnicza > 6) {
+        moc_pomocnicza -= 5;
         dac(moc_pomocnicza);
       }
       if(odejmowanie > 40 and moc_pomocnicza > 1) {
