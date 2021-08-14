@@ -426,11 +426,22 @@ void serialEvent() {        //komunikacja z andorem
     else if(inputString == "200") { 
     moc_i = 17;
     }
+    else if(inputString == "225") { 
+    moc_i = 18;
+    }
+    else if(inputString == "250") { 
+    moc_i = 19;
+    }
+    else if(inputString == "276") { 
+    moc_i = 20;
+    }
     else if(inputString == "MOD") { 
-     mod_en = !mod_en;
+    mod_en = !mod_en;
     }
     else if(inputString == "EN") { 
-     laser_en = !laser_en;
+    laser_en = !laser_en;
     }
+    moc_pomocnicza = moc[moc_i][0];
+    dac(moc[moc_i][0]);
   }
 }
